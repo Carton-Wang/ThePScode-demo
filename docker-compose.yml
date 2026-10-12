@@ -1,0 +1,131 @@
+version: "3.9"
+
+# ============================================================
+# 分布式 PS 签名系统 (修正版)
+#
+# 用户 A 集群: user_a_node1/2/3 (阈值 2)
+# 用户 B 集群: user_b_node1/2/3 (阈值 2)
+# 协调者:      coordinator (客户端入口)
+#
+# 修正点:
+#   - 节点挂载 share_data 卷, 份额加密落盘
+#   - 新增 SHARE_PASSPHRASE / AUTH_TOKEN 环境变量
+# ============================================================
+
+x-node-base: &node-base
+  build: .
+  command: python -m src.node
+  networks:
+    - ps_net
+  volumes:
+    - share_data:/data
+
+services:
+
+  # ==================== 用户 A 的 3 个节点 ====================
+  user_a_node1:
+    <<: *node-base
+    container_name: user_a_node1
+    environment:
+      NODE_ID: "1"
+      CLUSTER_NAME: "user_a"
+      NUM_NODES: "3"
+      THRESHOLD: "2"
+      NUM_MESSAGES: "2"
+      MY_URL: "http://user_a_node1:8000"
+      PEER_NODES: "http://user_a_node2:8000,http://user_a_node3:8000"
+      SHARE_PASSPHRASE: "${SHARE_PASSPHRASE_A}"
+      AUTH_TOKEN: "${AUTH_TOKEN}"
+
+  user_a_node2:
+    <<: *node-base
+    container_name: user_a_node2
+    environment:
+      NODE_ID: "2"
+      CLUSTER_NAME: "user_a"
+      NUM_NODES: "3"
+      THRESHOLD: "2"
+      NUM_MESSAGES: "2"
+      MY_URL: "http://user_a_node2:8000"
+      PEER_NODES: "http://user_a_node1:8000,http://user_a_node3:8000"
+      SHARE_PASSPHRASE: "${SHARE_PASSPHRASE_A}"
+      AUTH_TOKEN: "${AUTH_TOKEN}"
+
+  user_a_node3:
+    <<: *node-base
+    container_name: user_a_node3
+    environment:
+      NODE_ID: "3"
+      CLUSTER_NAME: "user_a"
+      NUM_NODES: "3"
+      THRESHOLD: "2"
+      NUM_MESSAGES: "2"
+      MY_URL: "http://user_a_node3:8000"
+      PEER_NODES: "http://user_a_node1:8000,http://user_a_node2:8000"
+      SHARE_PASSPHRASE: "${SHARE_PASSPHRASE_A}"
+      AUTH_TOKEN: "${AUTH_TOKEN}"
+
+  # ==================== 用户 B 的 3 个节点 ====================
+  user_b_node1:
+    <<: *node-base
+    container_name: user_b_node1
+    environment:
+      NODE_ID: "1"
+      CLUSTER_NAME: "user_b"
+      NUM_NODES: "3"
+      THRESHOLD: "2"
+      NUM_MESSAGES: "2"
+      MY_URL: "http://user_b_node1:8000"
+      PEER_NODES: "http://user_b_node2:8000,http://user_b_node3:8000"
+      SHARE_PASSPHRASE: "${SHARE_PASSPHRASE_B}"
+      AUTH_TOKEN: "${AUTH_TOKEN}"
+
+  user_b_node2:
+    <<: *node-base
+    container_name: user_b_node2
+    environment:
+      NODE_ID: "2"
+      CLUSTER_NAME: "user_b"
+      NUM_NODES: "3"
+      THRESHOLD: "2"
+      NUM_MESSAGES: "2"
+      MY_URL: "http://user_b_node2:8000"
+      PEER_NODES: "http://user_b_node1:8000,http://user_b_node3:8000"
+      SHARE_PASSPHRASE: "${SHARE_PASSPHRASE_B}"
+      AUTH_TOKEN: "${AUTH_TOKEN}"
+
+  user_b_node3:
+    <<: *node-base
+    container_name: user_b_node3
+    environment:
+      NODE_ID: "3"
+      CLUSTER_NAME: "user_b"
+      NUM_NODES: "3"
+      THRESHOLD: "2"
+      NUM_MESSAGES: "2"
+      MY_URL: "http://user_b_node3:8000"
+      PEER_NODES: "http://user_b_node1:8000,http://user_b_node2:8000"
+      SHARE_PASSPHRASE: "${SHARE_PASSPHRASE_B}"
+      AUTH_TOKEN: "${AUTH_TOKEN}"
+
+  # ==================== 协调者 ====================
+  coordinator:
+    build: .
+    container_name: ps_coordinator
+    command: python -m src.coordinator
+    ports:
+      - "9000:8000"
+    environment:
+      CLUSTERS: "user_a:user_a_node1:8000,user_a_node2:8000,user_a_node3:8000;user_b:user_b_node1:8000,user_b_node2:8000,user_b_node3:8000"
+      THRESHOLD_USER_A: "2"
+      THRESHOLD_USER_B: "2"
+      AUTH_TOKEN: "${AUTH_TOKEN}"
+    networks:
+      - ps_net
+
+volumes:
+  share_data:
+
+networks:
+  ps_net:
+    driver: bridge

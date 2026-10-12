@@ -1,0 +1,8 @@
+# 密码学库: BLS12-381 曲线 + 双线性配对
+py-ecc>=6.0.0
+# 对称加密 (份额加密落盘, storage.py 用)
+cryptography>=42.0.0
+# HTTP 服务框架
+flask>=3.0.0
+# HTTP 客户端（协调者向节点发起请求）
+requests>=2.31.0
